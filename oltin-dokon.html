@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Oltin Do'koni</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;1,300&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --gold:#C9A84C;--gold2:#E8C97A;--gold3:#F5E6B8;--gold4:#8B6914;
+  --bg:#0C0C0A;--bg2:#141410;--bg3:#1C1C16;--bg4:#242418;
+  --text:#EDE8D5;--dim:#6A6550;--border:rgba(201,168,76,0.15);
+  --green:#2ECC71;--red:#E74C3C;
+  --nav-h:64px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;background:var(--bg);}
+body{font-family:'DM Mono',monospace;color:var(--text);}
+
+/* ── VIEWS ── */
+.view{position:fixed;inset:0;bottom:var(--nav-h);display:flex;flex-direction:column;overflow-y:auto;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;transform:translateY(12px);}
+.view.active{opacity:1;pointer-events:all;transform:translateY(0);}
+.view-scanner{bottom:0;}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-thumb{background:var(--border);}
+
+/* ── TOP BAR ── */
+.topbar{padding:20px 20px 12px;background:var(--bg);position:sticky;top:0;z-index:10;border-bottom:1px solid var(--border);}
+.topbar-row{display:flex;justify-content:space-between;align-items:flex-start;}
+.topbar-title{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;color:var(--gold3);line-height:1;}
+.topbar-title em{font-style:italic;color:var(--gold2);}
+.balance-box{text-align:right;}
+.balance-label{font-size:8px;letter-spacing:.25em;color:var(--dim);text-transform:uppercase;margin-bottom:2px;}
+.balance-val{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;color:var(--gold2);letter-spacing:-.01em;}
+.price-pill{display:flex;align-items:center;gap:6px;margin-top:8px;background:var(--bg3);border:1px solid var(--border);border-radius:100px;padding:5px 10px;width:fit-content;}
+.price-pill-dot{width:5px;height:5px;border-radius:50%;background:#2ECC71;animation:blink 2s infinite;}
+.price-pill-text{font-size:9px;letter-spacing:.15em;color:var(--dim);}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── MARKETPLACE ── */
+#view-market{padding-bottom:16px;}
+.section-title{font-size:9px;letter-spacing:.3em;color:var(--dim);text-transform:uppercase;padding:16px 20px 8px;}
+.items-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 12px;}
+.item-card{background:var(--bg2);border:1px solid var(--border);border-radius:4px;overflow:hidden;cursor:pointer;transition:border-color .2s,transform .15s;}
+.item-card:active{transform:scale(.97);}
+.item-card:hover{border-color:rgba(201,168,76,.3);}
+.item-photo{width:100%;aspect-ratio:1;object-fit:cover;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:40px;position:relative;}
+.item-photo img{width:100%;height:100%;object-fit:cover;}
+.item-photo-placeholder{width:100%;aspect-ratio:1;background:var(--bg3);display:flex;align-items:center;justify-content:center;position:relative;}
+.probe-badge{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.7);border:1px solid var(--gold);color:var(--gold2);font-family:'Cormorant Garamond',serif;font-size:14px;font-weight:600;padding:2px 6px;border-radius:2px;backdrop-filter:blur(4px);}
+.item-info{padding:10px 12px;}
+.item-gram{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;color:var(--text);line-height:1;}
+.item-price{font-size:10px;color:var(--gold);margin-top:3px;letter-spacing:.03em;}
+.item-sub{font-size:8px;color:var(--dim);margin-top:2px;letter-spacing:.1em;}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:50vh;gap:12px;padding:40px;}
+.empty-icon{font-size:48px;opacity:.3;}
+.empty-text{font-size:11px;color:var(--dim);letter-spacing:.2em;text-transform:uppercase;}
+
+/* ── ADD ITEM ── */
+#view-add{padding:0 20px 20px;}
+.form-section{margin-top:20px;}
+.form-label{font-size:9px;letter-spacing:.3em;color:var(--dim);text-transform:uppercase;margin-bottom:8px;display:block;}
+.photo-upload{width:100%;height:180px;background:var(--bg3);border:1px dashed var(--border);border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:border-color .2s;position:relative;overflow:hidden;}
+.photo-upload:hover{border-color:var(--gold);}
+.photo-upload input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.photo-upload-icon{font-size:32px;margin-bottom:8px;opacity:.4;}
+.photo-upload-text{font-size:10px;color:var(--dim);letter-spacing:.15em;}
+.photo-preview{width:100%;height:100%;object-fit:cover;display:none;}
+.probe-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:4px;}
+.probe-opt{background:var(--bg3);border:1px solid var(--border);color:var(--dim);font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;padding:14px 0;text-align:center;cursor:pointer;border-radius:3px;transition:all .2s;position:relative;}
+.probe-opt:hover{border-color:var(--gold);color:var(--gold2);}
+.probe-opt.sel{border-color:var(--gold);color:var(--gold3);background:rgba(201,168,76,.07);}
+.probe-opt.sel::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--gold);}
+.probe-opt-sub{font-family:'DM Mono',monospace;font-size:8px;color:var(--dim);letter-spacing:.08em;margin-top:2px;display:block;}
+.probe-opt.sel .probe-opt-sub{color:var(--gold);opacity:.7;}
+.gram-wrap{position:relative;}
+.gram-field{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--gold3);font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:300;padding:16px 60px 16px 20px;outline:none;border-radius:3px;-moz-appearance:textfield;appearance:textfield;transition:border-color .2s;}
+.gram-field::-webkit-inner-spin-button{-webkit-appearance:none;}
+.gram-field:focus{border-color:var(--gold);}
+.gram-unit{position:absolute;right:20px;bottom:20px;font-size:11px;letter-spacing:.2em;color:var(--dim);}
+.estimate{background:var(--bg3);border:1px solid var(--border);border-radius:3px;padding:12px 16px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;}
+.estimate-label{font-size:9px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;}
+.estimate-val{font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--gold2);}
+.btn-primary{width:100%;background:var(--gold);color:#0C0C0A;font-family:'DM Mono',monospace;font-size:11px;font-weight:400;letter-spacing:.25em;text-transform:uppercase;padding:18px;border:none;border-radius:3px;cursor:pointer;transition:background .2s,transform .1s;margin-top:20px;}
+.btn-primary:active{transform:scale(.98);}
+.btn-primary:hover{background:var(--gold2);}
+.btn-secondary{width:100%;background:transparent;color:var(--dim);font-family:'DM Mono',monospace;font-size:11px;font-weight:300;letter-spacing:.25em;text-transform:uppercase;padding:14px;border:1px solid var(--border);border-radius:3px;cursor:pointer;margin-top:10px;transition:all .2s;}
+.btn-secondary:hover{border-color:var(--gold);color:var(--gold);}
+
+/* ── QR RESULT ── */
+#qr-result{display:none;padding:0 20px 20px;}
+.qr-box{background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:28px;text-align:center;}
+.qr-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;color:var(--gold3);margin-bottom:20px;}
+#qr-canvas-wrap{display:inline-block;background:#fff;padding:12px;border-radius:4px;margin-bottom:16px;}
+#qr-canvas-wrap canvas,#qr-canvas-wrap img{display:block;}
+.qr-item-info{background:var(--bg3);border-radius:3px;padding:14px;margin-bottom:16px;text-align:left;}
+.qr-info-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.qr-info-row:last-child{margin-bottom:0;}
+.qr-info-label{font-size:9px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;}
+.qr-info-val{font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--text);}
+
+/* ── SCANNER ── */
+#view-scanner{background:#000;}
+.scanner-wrap{position:relative;width:100%;height:100%;display:flex;flex-direction:column;}
+#scan-video{width:100%;height:100%;object-fit:cover;}
+#scan-canvas{display:none;}
+.scan-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}
+.scan-frame{width:220px;height:220px;position:relative;}
+.scan-frame::before,.scan-frame::after{content:'';position:absolute;width:40px;height:40px;}
+.scan-frame::before{top:0;left:0;border-top:3px solid var(--gold);border-left:3px solid var(--gold);}
+.scan-frame::after{top:0;right:0;border-top:3px solid var(--gold);border-right:3px solid var(--gold);}
+.scan-frame-b::before,.scan-frame-b::after{content:'';position:absolute;width:40px;height:40px;}
+.scan-frame-b{width:220px;height:220px;position:absolute;top:0;}
+.scan-frame-b::before{bottom:0;left:0;border-bottom:3px solid var(--gold);border-left:3px solid var(--gold);}
+.scan-frame-b::after{bottom:0;right:0;border-bottom:3px solid var(--gold);border-right:3px solid var(--gold);}
+.scan-line{position:absolute;left:3px;right:3px;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);animation:scanAnim 2s ease-in-out infinite;top:0;}
+@keyframes scanAnim{0%,100%{top:0;opacity:1}50%{top:calc(100% - 2px);opacity:.7}}
+.scan-label{margin-top:24px;font-size:10px;letter-spacing:.25em;color:rgba(255,255,255,.6);text-transform:uppercase;}
+.scan-cancel{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.2);color:#fff;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.2em;padding:12px 28px;border-radius:100px;cursor:pointer;backdrop-filter:blur(8px);pointer-events:all;}
+
+/* ── DETAIL MODAL ── */
+#view-detail{z-index:20;}
+.detail-wrap{padding:0 20px 20px;}
+.detail-photo{width:100%;aspect-ratio:4/3;background:var(--bg3);overflow:hidden;position:relative;margin-bottom:-1px;}
+.detail-photo img{width:100%;height:100%;object-fit:cover;}
+.detail-photo-empty{width:100%;aspect-ratio:4/3;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:64px;opacity:.3;}
+.detail-card{background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:24px;margin-top:16px;}
+.detail-probe{font-family:'Cormorant Garamond',serif;font-size:48px;font-weight:300;color:var(--gold2);line-height:1;}
+.detail-probe em{font-style:italic;font-size:20px;color:var(--dim);margin-left:8px;vertical-align:middle;}
+.detail-rows{margin-top:16px;border-top:1px solid var(--border);padding-top:16px;}
+.detail-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);}
+.detail-row-label{font-size:9px;letter-spacing:.25em;color:var(--dim);text-transform:uppercase;}
+.detail-row-val{font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--text);}
+.detail-price-row{display:flex;justify-content:space-between;align-items:center;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+.detail-price-label{font-size:9px;letter-spacing:.25em;color:var(--dim);text-transform:uppercase;}
+.detail-price-val{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600;color:var(--gold2);}
+.btn-sold{width:100%;background:var(--green);color:#fff;font-family:'DM Mono',monospace;font-size:12px;font-weight:400;letter-spacing:.3em;text-transform:uppercase;padding:20px;border:none;border-radius:3px;cursor:pointer;transition:all .2s;margin-top:20px;}
+.btn-sold:hover{background:#27AE60;}
+.btn-sold:active{transform:scale(.98);}
+.btn-back{width:100%;background:transparent;color:var(--dim);font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.25em;text-transform:uppercase;padding:14px;border:1px solid var(--border);border-radius:3px;cursor:pointer;margin-top:10px;transition:all .2s;}
+.btn-back:hover{border-color:var(--dim);color:var(--text);}
+.sold-tag{background:rgba(231,76,60,.15);border:1px solid rgba(231,76,60,.3);color:#e87c7c;font-size:9px;letter-spacing:.25em;text-transform:uppercase;padding:4px 10px;border-radius:100px;}
+
+/* ── BOTTOM NAV ── */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:var(--nav-h);background:var(--bg2);border-top:1px solid var(--border);display:flex;align-items:stretch;z-index:50;}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;transition:background .2s;border:none;background:transparent;color:var(--dim);position:relative;}
+.nav-btn.active{color:var(--gold);}
+.nav-btn.active::before{content:'';position:absolute;top:0;left:20%;right:20%;height:2px;background:var(--gold);}
+.nav-icon{font-size:20px;line-height:1;}
+.nav-label{font-size:8px;letter-spacing:.2em;text-transform:uppercase;}
+.nav-btn.scanner-nav{background:rgba(201,168,76,.08);}
+.nav-btn.scanner-nav .nav-icon{font-size:24px;}
+
+/* ── ANIMATIONS ── */
+@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+.pop{animation:slideUp .3s ease both;}
+
+/* ── TOAST ── */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--bg3);border:1px solid var(--border);color:var(--text);font-size:11px;letter-spacing:.15em;padding:12px 24px;border-radius:100px;z-index:200;transition:transform .3s;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.toast.success{border-color:var(--green);color:var(--green);}
+
+/* ── SOLD STAMP ── */
+.sold-stamp{position:absolute;top:12px;left:12px;background:var(--red);color:#fff;font-size:8px;letter-spacing:.25em;text-transform:uppercase;padding:3px 8px;border-radius:2px;font-family:'DM Mono',monospace;}
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════════════ VIEW: MARKETPLACE ═══════════════════════════════ -->
+<div class="view active" id="view-market">
+  <div class="topbar">
+    <div class="topbar-row">
+      <div class="topbar-title">Oltin<br><em>Do'koni</em></div>
+      <div class="balance-box">
+        <div class="balance-label">Kassa</div>
+        <div class="balance-val" id="balance-display">0</div>
+      </div>
+    </div>
+    <div class="price-pill">
+      <div class="price-pill-dot" id="market-dot"></div>
+      <div class="price-pill-text" id="market-price-text">Narx yuklanmoqda...</div>
+    </div>
+  </div>
+  <div class="section-title">· Mavjud mahsulotlar ·</div>
+  <div class="items-grid" id="items-grid"></div>
+  <div class="empty-state" id="empty-state" style="display:none;">
+    <div class="empty-icon">✦</div>
+    <div class="empty-text">Mahsulot yo'q</div>
+    <div style="font-size:10px;color:var(--dim);text-align:center;line-height:1.8;margin-top:4px;">Yangi tovar qo'shish uchun<br>+ tugmasini bosing</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ VIEW: ADD ITEM ═══════════════════════════════ -->
+<div class="view" id="view-add">
+  <div class="topbar">
+    <div class="topbar-title">Yangi <em>Tovar</em></div>
+  </div>
+
+  <!-- ADD FORM -->
+  <div id="add-form" style="padding:0 20px 20px;">
+    <div class="form-section">
+      <label class="form-label">· Rasm (ixtiyoriy) ·</label>
+      <div class="photo-upload" id="photoUploadArea">
+        <input type="file" accept="image/*" id="photoInput" onchange="handlePhoto(this)">
+        <img class="photo-preview" id="photoPreview" src="" alt="">
+        <div id="photoPlaceholder">
+          <div class="photo-upload-icon">📷</div>
+          <div class="photo-upload-text">Rasm tanlang</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <label class="form-label">· Proba ·</label>
+      <div class="probe-grid">
+        <div class="probe-opt sel" data-purity="0.999" onclick="selectProbe(this)">999<span class="probe-opt-sub">99.9%</span></div>
+        <div class="probe-opt" data-purity="0.777" onclick="selectProbe(this)">777<span class="probe-opt-sub">77.7%</span></div>
+        <div class="probe-opt" data-purity="0.585" onclick="selectProbe(this)">585<span class="probe-opt-sub">58.5%</span></div>
+        <div class="probe-opt" data-purity="0.588" onclick="selectProbe(this)">588<span class="probe-opt-sub">58.8%</span></div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <label class="form-label">· Og'irlik ·</label>
+      <div class="gram-wrap">
+        <input type="number" class="gram-field" id="gramInput" value="5" min="0.1" max="9999" step="0.1" oninput="updateEstimate()">
+        <span class="gram-unit">GRAM</span>
+      </div>
+      <div class="estimate">
+        <span class="estimate-label">Taxminiy narx</span>
+        <span class="estimate-val" id="estimate-val">—</span>
+      </div>
+    </div>
+
+    <button class="btn-primary" onclick="generateQR()">QR KOD YARATISH</button>
+  </div>
+
+  <!-- QR RESULT -->
+  <div id="qr-result">
+    <div style="padding:20px 20px 0;">
+      <div class="qr-box">
+        <div class="qr-title">QR Kod Tayyor ✦</div>
+        <div id="qr-canvas-wrap"></div>
+        <div class="qr-item-info" id="qr-summary"></div>
+        <button class="btn-primary" onclick="printQR()" style="margin-top:0;">🖨️ CHOP ETISH</button>
+      </div>
+    </div>
+    <div style="padding:0 20px;">
+      <button class="btn-secondary" onclick="addAnother()">+ Yana qo'shish</button>
+      <button class="btn-secondary" onclick="navigate('market')" style="margin-top:8px;">← Bozorga qaytish</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ VIEW: SCANNER ═══════════════════════════════ -->
+<div class="view view-scanner" id="view-scanner">
+  <div class="scanner-wrap">
+    <video id="scan-video" autoplay playsinline muted></video>
+    <canvas id="scan-canvas"></canvas>
+    <div class="scan-overlay">
+      <div style="position:relative">
+        <div class="scan-frame"><div class="scan-line"></div></div>
+        <div class="scan-frame-b"></div>
+      </div>
+      <div class="scan-label">QR kodni ramkaga joylashtiring</div>
+    </div>
+    <button class="scan-cancel" onclick="stopScanner(); navigate('market')">✕ Bekor qilish</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ VIEW: DETAIL ═══════════════════════════════ -->
+<div class="view" id="view-detail">
+  <div class="topbar">
+    <div class="topbar-title">Mahsulot <em>Ma'lumoti</em></div>
+  </div>
+  <div class="detail-wrap" id="detail-content"></div>
+</div>
+
+<!-- ═══════════════════════════════ BOTTOM NAV ═══════════════════════════════ -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="nav-market" onclick="navigate('market')">
+    <span class="nav-icon">⬡</span>
+    <span class="nav-label">Bozor</span>
+  </button>
+  <button class="nav-btn scanner-nav" id="nav-scanner" onclick="navigate('scanner')">
+    <span class="nav-icon">◈</span>
+    <span class="nav-label">Skaner</span>
+  </button>
+  <button class="nav-btn" id="nav-add" onclick="navigate('add')">
+    <span class="nav-icon">＋</span>
+    <span class="nav-label">Qo'shish</span>
+  </button>
+</nav>
+
+<script>
+// ═══════════ STATE ═══════════
+const DB = 'goldshop_v2';
+let db = { items: [], totalEarned: 0 };
+let goldUSD = 0, usdUZS = 12700;
+let selectedPurity = 0.999, selectedProbeLabel = '999';
+let photoData = null;
+let scanStream = null, scanActive = false, scanRAF = null;
+const TROY = 31.1035;
+
+// ═══════════ STORAGE ═══════════
+function loadDB() {
+  try { db = JSON.parse(localStorage.getItem(DB)) || { items: [], totalEarned: 0 }; }
+  catch { db = { items: [], totalEarned: 0 }; }
+}
+function saveDB() { localStorage.setItem(DB, JSON.stringify(db)); }
+
+// ═══════════ PRICE ═══════════
+function pricePerGram(purity) {
+  if (!goldUSD || !usdUZS) return 0;
+  return (goldUSD / TROY) * purity * usdUZS;
+}
+function calcTotal(gram, purity) { return pricePerGram(purity) * gram; }
+function fmt(n) { return Math.round(n).toLocaleString('en').replace(/,/g, ' '); }
+
+async function fetchPrices() {
+  try {
+    const [g, fx] = await Promise.all([
+      fetch('https://api.metals.live/v1/spot/gold').then(r => r.json()),
+      fetch('https://open.er-api.com/v6/latest/USD').then(r => r.json())
+    ]);
+    if (Array.isArray(g) && g[0]?.gold) goldUSD = g[0].gold;
+    else if (g?.gold) goldUSD = g.gold;
+    usdUZS = fx?.rates?.UZS || 12700;
+    const pgram999 = fmt(pricePerGram(0.999));
+    document.getElementById('market-price-text').textContent = `999 = ${pgram999} so'm/g`;
+    document.getElementById('market-dot').style.background = '#2ECC71';
+    updateEstimate();
+    renderMarket();
+  } catch {
+    goldUSD = goldUSD || 3300;
+    document.getElementById('market-price-text').textContent = 'Taxminiy narx (~$3300/oz)';
+    document.getElementById('market-dot').style.background = '#E74C3C';
+    updateEstimate();
+  }
+}
+
+// ═══════════ NAVIGATION ═══════════
+function navigate(v) {
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+  if (v === 'market') {
+    document.getElementById('view-market').classList.add('active');
+    document.getElementById('nav-market').classList.add('active');
+    stopScanner();
+    renderMarket();
+  } else if (v === 'add') {
+    document.getElementById('view-add').classList.add('active');
+    document.getElementById('nav-add').classList.add('active');
+    stopScanner();
+  } else if (v === 'scanner') {
+    document.getElementById('view-scanner').classList.add('active');
+    document.getElementById('nav-scanner').classList.add('active');
+    startScanner();
+  } else if (v === 'detail') {
+    document.getElementById('view-detail').classList.add('active');
+    stopScanner();
+  }
+}
+
+// ═══════════ MARKETPLACE ═══════════
+function renderMarket() {
+  loadDB();
+  const active = db.items.filter(i => !i.sold);
+  const grid = document.getElementById('items-grid');
+  const empty = document.getElementById('empty-state');
+  document.getElementById('balance-display').textContent = fmt(Math.round(db.totalEarned));
+  if (!active.length) {
+    grid.innerHTML = '';
+    empty.style.display = 'flex';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.innerHTML = active.map(item => {
+    const price = calcTotal(item.gram, item.purity);
+    const photoHtml = item.photo
+      ? `<img src="${item.photo}" style="width:100%;height:100%;object-fit:cover;">`
+      : `<div style="font-size:36px;opacity:.25;">✦</div>`;
+    return `<div class="item-card" onclick="openDetail('${item.id}')">
+      <div class="item-photo" style="position:relative;overflow:hidden;">
+        ${photoHtml}
+        <div class="probe-badge">${item.probe}</div>
+      </div>
+      <div class="item-info">
+        <div class="item-gram">${item.gram} <span style="font-size:13px;color:var(--dim)">gram</span></div>
+        <div class="item-price">${fmt(price)} so'm</div>
+        <div class="item-sub">PROBA ${item.probe} · ${(item.purity*100).toFixed(1)}%</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════ ADD ITEM ═══════════
+function selectProbe(el) {
+  document.querySelectorAll('.probe-opt').forEach(e => e.classList.remove('sel'));
+  el.classList.add('sel');
+  selectedPurity = parseFloat(el.dataset.purity);
+  selectedProbeLabel = el.textContent.replace(el.querySelector('.probe-opt-sub').textContent,'').trim();
+  updateEstimate();
+}
+
+function handlePhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    photoData = e.target.result;
+    document.getElementById('photoPreview').src = photoData;
+    document.getElementById('photoPreview').style.display = 'block';
+    document.getElementById('photoPlaceholder').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function updateEstimate() {
+  const gram = parseFloat(document.getElementById('gramInput')?.value) || 0;
+  const price = calcTotal(gram, selectedPurity);
+  const el = document.getElementById('estimate-val');
+  if (el) el.textContent = price > 0 ? fmt(price) + ' so\'m' : '—';
+}
+
+function generateQR() {
+  const gram = parseFloat(document.getElementById('gramInput').value);
+  if (!gram || gram <= 0) { showToast('Gramni kiriting!'); return; }
+
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+  const item = {
+    id, gram, probe: selectedProbeLabel, purity: selectedPurity,
+    photo: photoData, addedAt: Date.now(), sold: false
+  };
+  db.items.unshift(item);
+  saveDB();
+
+  // Generate QR
+  document.getElementById('add-form').style.display = 'none';
+  document.getElementById('qr-result').style.display = 'block';
+  document.getElementById('qr-canvas-wrap').innerHTML = '';
+
+  new QRCode(document.getElementById('qr-canvas-wrap'), {
+    text: 'GOLD:' + id,
+    width: 180, height: 180,
+    colorDark: '#000000', colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+
+  const price = calcTotal(gram, selectedPurity);
+  document.getElementById('qr-summary').innerHTML = `
+    <div class="qr-info-row"><span class="qr-info-label">ID</span><span class="qr-info-val" style="font-size:12px;font-family:'DM Mono',monospace;">${id}</span></div>
+    <div class="qr-info-row"><span class="qr-info-label">Proba</span><span class="qr-info-val">${selectedProbeLabel}</span></div>
+    <div class="qr-info-row"><span class="qr-info-label">Og'irlik</span><span class="qr-info-val">${gram} gram</span></div>
+    <div class="qr-info-row"><span class="qr-info-label">Taxminiy narx</span><span class="qr-info-val" style="color:var(--gold2)">${fmt(price)} so'm</span></div>
+  `;
+  showToast('Tovar qo\'shildi ✓', true);
+}
+
+function addAnother() {
+  document.getElementById('add-form').style.display = 'block';
+  document.getElementById('qr-result').style.display = 'none';
+  document.getElementById('gramInput').value = '5';
+  document.getElementById('photoPreview').style.display = 'none';
+  document.getElementById('photoPlaceholder').style.display = 'block';
+  photoData = null;
+  document.getElementById('qr-canvas-wrap').innerHTML = '';
+  updateEstimate();
+}
+
+function printQR() {
+  const qrEl = document.getElementById('qr-canvas-wrap');
+  const canvas = qrEl.querySelector('canvas') || qrEl.querySelector('img');
+  if (!canvas) return;
+  const src = canvas.tagName === 'CANVAS' ? canvas.toDataURL() : canvas.src;
+  const win = window.open('', '_blank');
+  win.document.write(`<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#fff">
+    <div style="text-align:center"><img src="${src}" style="width:200px;height:200px;"><br>
+    <p style="font-family:monospace;margin-top:12px;font-size:12px;">Oltin Do'koni QR</p></div>
+  </body></html>`);
+  win.document.close();
+  win.print();
+}
+
+// ═══════════ SCANNER ═══════════
+async function startScanner() {
+  if (scanActive) return;
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    const video = document.getElementById('scan-video');
+    video.srcObject = scanStream;
+    await video.play();
+    scanActive = true;
+    scanLoop();
+  } catch (e) {
+    showToast('Kamera ruxsati yo\'q');
+    navigate('market');
+  }
+}
+
+function stopScanner() {
+  scanActive = false;
+  if (scanRAF) { cancelAnimationFrame(scanRAF); scanRAF = null; }
+  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  const v = document.getElementById('scan-video');
+  if (v) v.srcObject = null;
+}
+
+function scanLoop() {
+  if (!scanActive) return;
+  const video = document.getElementById('scan-video');
+  const canvas = document.getElementById('scan-canvas');
+  if (video.readyState === video.HAVE_ENOUGH_DATA && video.videoWidth > 0) {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+    try {
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: 'dontInvert' });
+      if (code?.data?.startsWith('GOLD:')) {
+        const id = code.data.slice(5);
+        stopScanner();
+        openDetail(id);
+        return;
+      }
+    } catch {}
+  }
+  scanRAF = requestAnimationFrame(scanLoop);
+}
+
+// ═══════════ DETAIL ═══════════
+function openDetail(id) {
+  loadDB();
+  const item = db.items.find(i => i.id === id);
+  if (!item) { showToast('Mahsulot topilmadi'); navigate('market'); return; }
+  const price = calcTotal(item.gram, item.purity);
+  const photoHtml = item.photo
+    ? `<div class="detail-photo"><img src="${item.photo}" alt=""></div>`
+    : `<div class="detail-photo-empty">✦</div>`;
+  const soldTag = item.sold
+    ? `<span class="sold-tag">Sotildi</span>` : '';
+  document.getElementById('detail-content').innerHTML = `
+    ${photoHtml}
+    <div class="detail-card pop">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div class="detail-probe">${item.probe}<em>proba</em></div>
+          <div style="font-size:9px;letter-spacing:.2em;color:var(--dim);margin-top:4px;">${(item.purity*100).toFixed(1)}% sof oltin</div>
+        </div>
+        ${soldTag}
+      </div>
+      <div class="detail-rows">
+        <div class="detail-row">
+          <span class="detail-row-label">Og'irlik</span>
+          <span class="detail-row-val">${item.gram} gram</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-row-label">ID</span>
+          <span class="detail-row-val" style="font-size:12px;font-family:'DM Mono',monospace;">${item.id}</span>
+        </div>
+      </div>
+      <div class="detail-price-row">
+        <span class="detail-price-label">Hozirgi narx</span>
+        <div>
+          <div class="detail-price-val">${fmt(price)}</div>
+          <div style="font-size:9px;color:var(--dim);text-align:right;margin-top:2px;">UZS so'm</div>
+        </div>
+      </div>
+      ${!item.sold ? `
+        <button class="btn-sold" onclick="sellItem('${item.id}')">✓ SOTILDI</button>
+        <button class="btn-back" onclick="navigate('scanner')">◈ Qayta Skanerlash</button>
+        <button class="btn-back" onclick="navigate('market')">← Bozorga qaytish</button>
+      ` : `
+        <div style="text-align:center;padding:20px 0;color:var(--dim);font-size:11px;letter-spacing:.2em;">Bu mahsulot allaqachon sotilgan</div>
+        <button class="btn-back" onclick="navigate('market')">← Bozorga qaytish</button>
+      `}
+    </div>
+  `;
+  navigate('detail');
+}
+
+function sellItem(id) {
+  loadDB();
+  const item = db.items.find(i => i.id === id);
+  if (!item || item.sold) return;
+  const price = calcTotal(item.gram, item.purity);
+  item.sold = true;
+  item.soldAt = Date.now();
+  item.soldPrice = price;
+  db.totalEarned = (db.totalEarned || 0) + price;
+  saveDB();
+  showToast(`${fmt(price)} so'm kassaga qo'shildi ✓`, true);
+  setTimeout(() => navigate('market'), 800);
+}
+
+// ═══════════ UTILS ═══════════
+let toastTimer;
+function showToast(msg, success = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (success ? ' success' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = 'toast', 2800);
+}
+
+// ═══════════ INIT ═══════════
+loadDB();
+renderMarket();
+fetchPrices();
+setInterval(fetchPrices, 60000);
+
+// Keep detail price updated
+setInterval(() => {
+  if (document.getElementById('view-detail').classList.contains('active')) {
+    const priceEl = document.querySelector('.detail-price-val');
+    if (priceEl) {
+      // re-read from DOM item ID if needed — prices auto update on detail open
+    }
+  }
+}, 30000);
+</script>
+</body>
+</html>
